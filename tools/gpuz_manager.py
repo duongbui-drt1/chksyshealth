@@ -47,9 +47,10 @@ def _get_cached_exe() -> Optional[Path]:
 
 
 def _download_gpuz() -> Optional[Path]:
-    """Tải GPU-Z Portable về thư mục cache."""
+    """Tải GPU-Z Portable về thư mục cache qua hệ thống mirror TechPowerUp."""
     try:
         import requests
+        from bs4 import BeautifulSoup
     except ImportError:
         return None
 
@@ -58,19 +59,64 @@ def _download_gpuz() -> Optional[Path]:
 
     print_step("Tải xuống GPU-Z (TechPowerUp Portable Tool)...")
     success = False
-    for url in GPUZ_URLS:
-        try:
-            callback = make_download_callback("GPU-Z")
-            # Fake User-Agent để tránh bị từ chối
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) CheckSysHealth/1.0"}
-            resp = requests.get(url, headers=headers, stream=True, timeout=15)
-            if resp.status_code == 200 and len(resp.content) > 500_000:
-                with open(exe_path, "wb") as f:
-                    f.write(resp.content)
-                success = True
-                break
-        except Exception:
-            continue
+
+    # 1. Thử tải qua cơ chế scrape token động từ TechPowerUp chính chủ
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        s = requests.Session()
+        s.headers.update(headers)
+
+        # Bước 1: Vào trang tải chính và lấy version id
+        r1 = s.get("https://www.techpowerup.com/download/techpowerup-gpu-z/", timeout=15)
+        if r1.status_code == 200:
+            soup1 = BeautifulSoup(r1.text, 'html.parser')
+            version_inp = soup1.find('input', {'name': 'id'})
+            if version_inp and version_inp.get('value'):
+                version_id = version_inp['value']
+
+                # Bước 2: POST version id để lấy danh sách mirror server
+                r2 = s.post("https://www.techpowerup.com/download/techpowerup-gpu-z/", data={'id': version_id}, timeout=15)
+                if r2.status_code == 200:
+                    soup2 = BeautifulSoup(r2.text, 'html.parser')
+                    # Tìm button server_id (ưu tiên các server ổn định hoặc server đầu tiên tìm thấy)
+                    server_btn = soup2.find('button', {'name': 'server_id'})
+                    if server_btn and server_btn.get('value'):
+                        server_id = server_btn['value']
+
+                        # Bước 3: POST server_id để nhận trực tiếp luồng nhị phân file .exe
+                        callback = make_download_callback("GPU-Z")
+                        r3 = s.post("https://www.techpowerup.com/download/techpowerup-gpu-z/",
+                                    data={'id': version_id, 'server_id': server_id},
+                                    stream=True, timeout=30)
+                        if r3.status_code == 200:
+                            total_size = int(r3.headers.get("content-length", 0))
+                            downloaded = 0
+                            with open(exe_path, "wb") as f:
+                                for chunk in r3.iter_content(chunk_size=16384):
+                                    if chunk:
+                                        f.write(chunk)
+                                        downloaded += len(chunk)
+                                        if total_size > 0:
+                                            callback(downloaded, total_size)
+                            if exe_path.exists() and exe_path.stat().st_size > 500_000:
+                                success = True
+    except Exception as exc:
+        pass
+
+    # 2. Fallback sang danh sách URL trực tiếp nếu scrape lỗi
+    if not success:
+        for url in GPUZ_URLS:
+            try:
+                callback = make_download_callback("GPU-Z")
+                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) CheckSysHealth/1.0"}
+                resp = requests.get(url, headers=headers, stream=True, timeout=15)
+                if resp.status_code == 200 and int(resp.headers.get("content-length", 0)) > 500_000:
+                    with open(exe_path, "wb") as f:
+                        f.write(resp.content)
+                    success = True
+                    break
+            except Exception:
+                continue
 
     if not success or not exe_path.exists():
         print_warn("Không thể tải tự động GPU-Z — sẽ dùng fallback WMI")

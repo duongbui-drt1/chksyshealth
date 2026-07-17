@@ -3,3 +3,4 @@ wmi>=1.5.1
 pywin32>=306
 colorama>=0.4.6
 requests>=2.31.0
+beautifulsoup4>=4.12.0

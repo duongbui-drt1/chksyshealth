@@ -17,10 +17,10 @@
 Chúng tôi cung cấp **2 phiên bản** khởi chạy nhanh qua PowerShell tuỳ thuộc vào nhu cầu của bạn:
 
 ### 1️⃣ Phiên bản Độc lập Siêu nhanh — `CheckSysHealth.ps1` (Khuyên dùng)
-* 🚀 **Tốc độ siêu nhanh (~3 - 5 giây)** | **Không cần cài Python** | **Không tải thư viện DLL bên thứ ba**.
-* Loại bỏ phần đo nhiệt độ CPU/GPU để đạt tốc độ tối đa, sử dụng 100% WMI/CIM thuần túy của Windows.
+* 🚀 **Tốc độ siêu nhanh (~3 - 5 giây)** | **Không cần cài Python** | **Không tải công cụ ngoài hay thư viện bên thứ ba**.
+* Sử dụng 100% WMI/CIM thuần túy của Windows để quét thông số CPU, RAM, GPU, Mainboard, Pin, Mạng (kèm thống kê driver ảo), và quét driver **Âm thanh + Bluetooth** chi tiết.
 * Giao diện tiếng Việt không dấu / tiếng Anh chuẩn ASCII (chống lỗi font tuyệt đối trên mọi máy).
-* Tự động xuất báo cáo HTML Dark Mode ra Desktop và mở trên trình duyệt.
+* Tự động xuất báo cáo HTML Dark/Light Mode ra Desktop và mở trên trình duyệt.
 
 Mở **PowerShell (Run as Administrator)** và chạy dòng lệnh:
 ```powershell
@@ -59,13 +59,14 @@ build.bat
 
 | Module | Phiên bản Standalone (`CheckSysHealth.ps1`) | Phiên bản Đầy đủ (`run.ps1` / Python + CPU-Z/GPU-Z) |
 | :--- | :--- | :--- |
-| **🖥️ CPU** | Tên, hãng, số nhân/luồng, xung nhịp, % tải, Socket | Tên, hãng, nhân/luồng, xung nhịp, % tải, **Codename, Tiến trình nm, Tập lệnh, L1/L2/L3 Cache (qua CPU-Z)** |
+| **🖥️ CPU** | Tên, hãng, số nhân/luồng, xung nhịp, % tải, Socket, **L2/L3 Cache, Kiến trúc** | Tên, hãng, nhân/luồng, xung nhịp, % tải, Socket, L2/L3 Cache, Kiến trúc, **Codename, Tiến trình nm, Tập lệnh (qua CPU-Z)** |
 | **🔧 Mainboard** | Hãng, model, serial, BIOS version/date, SLIC OEM ID | Hãng, model, serial, BIOS version/date, SLIC OEM ID |
 | **🧠 RAM** | Tổng dung lượng, chi tiết từng thanh (Dung lượng, hãng, bus speed, part number, khe cắm) | Tổng dung lượng, chi tiết từng thanh (Dung lượng, hãng, bus speed, part number, khe cắm) |
 | **💾 Ổ cứng** | Model, dung lượng, giao tiếp NVMe/SATA, tình trạng SMART (Good/Bad), phân vùng | Model, dung lượng, NVMe/SATA, SMART health%, bad sector, POH, TBW (**qua CrystalDiskInfo**) |
 | **🔋 Pin** | Trạng thái pin, % dung lượng ước tính hiện tại | Wear Level%, chu kỳ sạc, dung lượng thiết kế vs hiện tại |
-| **🎮 GPU** | Tên card, hãng, dung lượng VRAM, phiên bản Driver, độ phân giải | Tên card, hãng, VRAM, Driver, **Kiến trúc (Arch), Shaders, Transistors, Die Size, Memory Bus (qua GPU-Z)** |
-| **🌐 Mạng** | Danh sách NIC, MAC, IP, DHCP, kiểm tra kết nối Internet | Danh sách NIC, MAC, IP, DHCP, kiểm tra kết nối Internet, cấu hình Firewall |
+| **🎮 GPU** | Tên card, hãng, dung lượng VRAM, driver version, độ phân giải | Tên card, hãng, VRAM, Driver, **Kiến trúc (Arch), Shaders, Transistors, Die Size, Memory Bus (qua GPU-Z)** |
+| **🌐 Mạng** | Danh sách NIC active, MAC, IP, DHCP, kiểm tra Internet + **Thống kê toàn bộ adapter (vật lý & ảo, offline & online)** | Danh sách NIC active, MAC, IP, DHCP, kiểm tra Internet + **Thống kê toàn bộ adapter (vật lý & ảo) & cấu hình Firewall** |
+| **🎵 Media** | **Driver Âm thanh & Bluetooth (Version, Date, Hãng SX)** | **Driver Âm thanh & Bluetooth (Version, Date, Hãng SX)** |
 | **🔑 Bản quyền** | Kiểm tra chi tiết trạng thái kích hoạt Windows & Microsoft Office (OSPP + C2R hybrid) | Kiểm tra chi tiết trạng thái kích hoạt Windows & Microsoft Office (OSPP + C2R hybrid) |
 | **🛡️ Quét Crack** | **14 hạng mục quét chuyên sâu** (Windows KMS, Office R2V, KMS Emulator, Tasks, Ports, Registry...) | **14 hạng mục quét chuyên sâu** (Windows KMS, Office R2V, KMS Emulator, Tasks, Ports, Registry...) |
 | **📁 Báo cáo** | Tự động tạo báo cáo HTML Dark Mode đẹp mắt tại `Desktop` | Tự động tạo báo cáo HTML Dark Mode đẹp mắt tại `Desktop` |

@@ -216,6 +216,15 @@ def get_gpuz_data(is_online: bool = False) -> List[Dict[str, Any]]:
         pass
 
     try:
+        # Ghi đè registry để bỏ qua màn hình hỏi Install / Portable của GPU-Z
+        try:
+            import winreg
+            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\techPowerUp\GPU-Z")
+            winreg.SetValueEx(key, "Install_Dir", 0, winreg.REG_SZ, "no")
+            winreg.CloseKey(key)
+        except Exception:
+            pass
+
         # Chạy ngầm GPU-Z.exe -xml=...
         cmd = [str(exe_path), f"-xml={xml_file}"]
         creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)

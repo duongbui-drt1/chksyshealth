@@ -5,7 +5,7 @@ Entry point chính của ứng dụng CheckSysHealth.
 Luồng thực thi:
   1. Kiểm tra quyền Administrator → UAC prompt nếu chưa có
   2. Kiểm tra kết nối internet sơ bộ
-  3. (Nếu online) Tải LibreHardwareMonitor + CrystalDiskInfo ngầm
+  3. (Nếu online) Tải CPU-Z + GPU-Z + CrystalDiskInfo ngầm
   4. Thu thập thông tin từ tất cả collectors (có progress bar)
   5. Tạo HTML report
   6. Lưu report ra Desktop
@@ -75,7 +75,7 @@ from collectors import (
 )
 
 # Tool managers
-from tools import ohm_manager, cdi_manager
+from tools import cpuz_manager, gpuz_manager, cdi_manager
 
 # Report builder
 from report.html_builder import build_html
@@ -167,19 +167,23 @@ def main():
         print_warn("Không có kết nối internet — sẽ bỏ qua các tính năng cần mạng")
 
     # ─── 1. Tải công cụ ngoài (ngầm nếu online) ───────────────────────────
-    sensor_data = {}
-    cdi_data    = []
+    cpuz_data = {}
+    gpuz_data = []
+    cdi_data  = []
 
     if is_online:
         print_section("Chuẩn bị công cụ bổ sung")
-        # LibreHardwareMonitor — đọc nhiệt độ
-        sensor_data = ohm_manager.get_sensor_data(is_online=True)
+        # CPU-Z — đọc chi tiết cấu hình CPU
+        cpuz_data = cpuz_manager.get_cpuz_data(is_online=True)
+        # GPU-Z — đọc chi tiết cấu hình GPU
+        gpuz_data = gpuz_manager.get_gpuz_data(is_online=True)
         # CrystalDiskInfo — đọc SMART chi tiết
         cdi_data = cdi_manager.get_smart_data(is_online=True)
     else:
         # Thử dùng tool đã cache từ lần trước
-        sensor_data = ohm_manager.get_sensor_data(is_online=False)
-        cdi_data    = cdi_manager.get_smart_data(is_online=False)
+        cpuz_data = cpuz_manager.get_cpuz_data(is_online=False)
+        gpuz_data = gpuz_manager.get_gpuz_data(is_online=False)
+        cdi_data  = cdi_manager.get_smart_data(is_online=False)
 
     # ─── 2. Thu thập thông tin phần cứng ──────────────────────────────────
     print_section("Thu thập thông tin hệ thống")
@@ -190,7 +194,7 @@ def main():
 
     step += 1; print_step("CPU", step, total_steps)
     try:
-        all_data["cpu"] = cpu_collector.collect(sensor_data=sensor_data)
+        all_data["cpu"] = cpu_collector.collect(cpuz_data=cpuz_data)
         print_ok(f"CPU: {all_data['cpu'].get('name','N/A')}")
     except Exception as e:
         print_warn(f"CPU collector lỗi: {e}")
@@ -237,7 +241,7 @@ def main():
 
     step += 1; print_step("GPU", step, total_steps)
     try:
-        all_data["gpu"] = gpu_collector.collect(sensor_data=sensor_data)
+        all_data["gpu"] = gpu_collector.collect(gpuz_data=gpuz_data)
         gpus = all_data["gpu"].get("gpus", [])
         if gpus:
             print_ok(f"GPU: {gpus[0].get('name','N/A')}")
@@ -341,8 +345,4 @@ if __name__ == "__main__":
         input("Nhấn Enter để thoát...")
         sys.exit(1)
     finally:
-        # Đảm bảo dọn dẹp LibreHardwareMonitor nếu đang chạy
-        try:
-            ohm_manager.stop_lhm()
-        except Exception:
-            pass
+        pass

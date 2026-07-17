@@ -29,8 +29,8 @@ irm https://raw.githubusercontent.com/duongbui-drt1/chksyshealth/main/CheckSysHe
 
 ---
 
-### 2️⃣ Phiên bản Đầy đủ — `run.ps1` (Python + Đo nhiệt độ CPU)
-* 🌡️ Tự động tải & tích hợp **LibreHardwareMonitor (LHM)** cùng **CrystalDiskInfo** để đo chi tiết nhiệt độ CPU, GPU và dữ liệu SMART chuyên sâu.
+### 2️⃣ Phiên bản Đầy đủ — `run.ps1` (Python + CPU-Z + GPU-Z)
+* ⚡ Tự động tải & tích hợp bộ đôi công cụ vàng **CPU-Z** (cho CPU) và **GPU-Z** (cho GPU) cùng **CrystalDiskInfo** (cho ổ cứng) để trích xuất cấu hình phần cứng sâu sắc và chính xác nhất (Codename, NM, Kiến trúc, Shaders, Transistors, L1/L2/L3 Cache, Clock Speeds...).
 * Tự động kiểm tra Python trên máy (hoặc tải bản Standalone `.exe` nếu chưa có Python).
 
 Mở **PowerShell (Run as Administrator)** và chạy dòng lệnh:
@@ -57,14 +57,14 @@ build.bat
 
 ## 📊 Bảng so sánh tính năng
 
-| Module | Phiên bản Standalone (`CheckSysHealth.ps1`) | Phiên bản Đầy đủ (`run.ps1` / Python) |
+| Module | Phiên bản Standalone (`CheckSysHealth.ps1`) | Phiên bản Đầy đủ (`run.ps1` / Python + CPU-Z/GPU-Z) |
 | :--- | :--- | :--- |
-| **🖥️ CPU** | Tên, hãng, số nhân/luồng, xung nhịp, % tải, Socket | Tên, hãng, nhân/luồng, xung nhịp, % tải, **nhiệt độ từng nhân (qua LHM)** |
+| **🖥️ CPU** | Tên, hãng, số nhân/luồng, xung nhịp, % tải, Socket | Tên, hãng, nhân/luồng, xung nhịp, % tải, **Codename, Tiến trình nm, Tập lệnh, L1/L2/L3 Cache (qua CPU-Z)** |
 | **🔧 Mainboard** | Hãng, model, serial, BIOS version/date, SLIC OEM ID | Hãng, model, serial, BIOS version/date, SLIC OEM ID |
 | **🧠 RAM** | Tổng dung lượng, chi tiết từng thanh (Dung lượng, hãng, bus speed, part number, khe cắm) | Tổng dung lượng, chi tiết từng thanh (Dung lượng, hãng, bus speed, part number, khe cắm) |
 | **💾 Ổ cứng** | Model, dung lượng, giao tiếp NVMe/SATA, tình trạng SMART (Good/Bad), phân vùng | Model, dung lượng, NVMe/SATA, SMART health%, bad sector, POH, TBW (**qua CrystalDiskInfo**) |
 | **🔋 Pin** | Trạng thái pin, % dung lượng ước tính hiện tại | Wear Level%, chu kỳ sạc, dung lượng thiết kế vs hiện tại |
-| **🎮 GPU** | Tên card, hãng, dung lượng VRAM, phiên bản Driver, độ phân giải | Tên card, hãng, VRAM, Driver, **nhiệt độ GPU (qua LHM)** |
+| **🎮 GPU** | Tên card, hãng, dung lượng VRAM, phiên bản Driver, độ phân giải | Tên card, hãng, VRAM, Driver, **Kiến trúc (Arch), Shaders, Transistors, Die Size, Memory Bus (qua GPU-Z)** |
 | **🌐 Mạng** | Danh sách NIC, MAC, IP, DHCP, kiểm tra kết nối Internet | Danh sách NIC, MAC, IP, DHCP, kiểm tra kết nối Internet, cấu hình Firewall |
 | **🔑 Bản quyền** | Kiểm tra chi tiết trạng thái kích hoạt Windows & Microsoft Office (OSPP + C2R hybrid) | Kiểm tra chi tiết trạng thái kích hoạt Windows & Microsoft Office (OSPP + C2R hybrid) |
 | **🛡️ Quét Crack** | **14 hạng mục quét chuyên sâu** (Windows KMS, Office R2V, KMS Emulator, Tasks, Ports, Registry...) | **14 hạng mục quét chuyên sâu** (Windows KMS, Office R2V, KMS Emulator, Tasks, Ports, Registry...) |

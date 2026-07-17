@@ -533,39 +533,46 @@ def _build_summary_cards(data: Dict) -> str:
 
 def _build_cpu_section(cpu: Dict) -> str:
     temp_c = cpu.get("temperature_c")
-    temp_str = f"{temp_c}°C" if temp_c is not None else "N/A (cần LHM)"
+    temp_str = f"{temp_c}°C" if temp_c is not None else "N/A"
     temp_color = cpu.get("temp_status", "unknown")
+
+    l2_display = cpu.get("l2_cache_str") or (f"{cpu.get('l2_cache_kb')} KB" if cpu.get("l2_cache_kb") else "N/A")
+    l3_display = cpu.get("l3_cache_str") or (f"{cpu.get('l3_cache_kb')/1024:.1f} MB" if cpu.get("l3_cache_kb") else "N/A")
 
     return f"""
 <div class="section">
-  <div class="section-title">🖥️ CPU — Bộ vi xử lý</div>
+  <div class="section-title">🖥️ CPU — Bộ vi xử lý (CPU-Z Powered)</div>
   <div class="panel">
     <div class="panel-header">
       <span>⚙️</span>
       <span>{cpu.get('name','N/A')}</span>
-      <span style="margin-left:auto">{_status_badge(cpu.get('temp_status','unknown').title(), _color_class(cpu.get('temp_status','unknown')))}</span>
+      <span style="margin-left:auto">{_status_badge(cpu.get('codename','CPU-Z').title() if cpu.get('codename') and cpu.get('codename') != 'N/A' else 'x64', 'good')}</span>
     </div>
     <div class="panel-body">
       <div class="panel-grid">
-        {_info_row("Hãng sản xuất", cpu.get('manufacturer'))}
+        {_info_row("Hãng / Codename", f"{cpu.get('manufacturer','N/A')} — {cpu.get('codename','N/A')}")}
         {_info_row("Số nhân / Luồng", f"{cpu.get('cores',0)} nhân / {cpu.get('threads',0)} luồng")}
+        {_info_row("Tiến trình (nm)", cpu.get('technology_nm','N/A'))}
+        {_info_row("Socket / Package", cpu.get('socket','N/A'))}
         {_info_row("Xung nhịp cơ bản", cpu.get('base_clock_mhz'), " MHz")}
         {_info_row("Xung nhịp hiện tại", cpu.get('current_clock_mhz'), " MHz")}
-        {_info_row("Cache L2", cpu.get('l2_cache_kb'), " KB")}
-        {_info_row("Cache L3", cpu.get('l3_cache_kb'), " KB")}
-        {_info_row("Socket", cpu.get('socket'))}
-        {_info_row("Kiến trúc", cpu.get('architecture'))}
-        {_info_row("Processor ID", cpu.get('processor_id'))}
+        {_info_row("Cache L1", cpu.get('l1_cache_str','N/A'))}
+        {_info_row("Cache L2", l2_display)}
+        {_info_row("Cache L3", l3_display)}
+        {_info_row("Stepping", cpu.get('stepping','N/A'))}
+        {_info_row("Kiến trúc", cpu.get('architecture','x64'))}
+        {_info_row("Processor ID", cpu.get('processor_id','N/A'))}
       </div>
+      {f'<div style="margin-top:12px;font-size:.8rem;color:var(--text-muted)"><strong>Tập lệnh (Instructions):</strong> {cpu.get("instructions","N/A")}</div>' if cpu.get('instructions') and cpu.get('instructions') != 'N/A' else ''}
       <hr style="border-color:var(--border);margin:16px 0">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div>
           {_progress_bar(cpu.get('load_pct'), "Tải CPU hiện tại")}
-          <div style="font-size:.78rem;color:var(--text-muted)">{cpu.get('load_pct',0):.1f}% utilization</div>
+          <div style="font-size:.78rem;color:var(--text-muted)">{cpu.get('load_pct',0):.1f}% utilization (Realtime)</div>
         </div>
         <div>
           <div class="progress-label"><span>Nhiệt độ</span><span class="{_color_class(temp_color)}">{temp_str}</span></div>
-          {_progress_bar(((temp_c or 50) / 100) * 100 if temp_c else None, "", show_pct=False) if temp_c else '<div style="color:var(--text-muted);font-size:.8rem;margin-top:8px">Cần LibreHardwareMonitor để đọc nhiệt độ</div>'}
+          {_progress_bar(((temp_c or 50) / 100) * 100 if temp_c else None, "", show_pct=False) if temp_c else '<div style="color:var(--text-muted);font-size:.8rem;margin-top:8px">Đo qua cảm biến phần cứng</div>'}
         </div>
       </div>
     </div>
@@ -750,22 +757,32 @@ def _build_gpu_section(gpu_data: Dict) -> str:
         load = gpu.get("load_pct")
         panels += f"""
 <div class="panel" style="margin-bottom:12px">
-  <div class="panel-header"><span>🎮</span><span>{gpu.get('name','Unknown GPU')}</span></div>
+  <div class="panel-header">
+    <span>🎮</span>
+    <span>{gpu.get('name','Unknown GPU')}</span>
+    <span style="margin-left:auto">{_status_badge(gpu.get('architecture','GPU-Z').title() if gpu.get('architecture') and gpu.get('architecture') != 'N/A' else 'Graphics', 'good')}</span>
+  </div>
   <div class="panel-body">
     <div class="panel-grid">
-      {_info_row("VRAM", gpu.get('vram_str','N/A'))}
+      {_info_row("Kiến trúc (Arch)", gpu.get('architecture','N/A'))}
+      {_info_row("Dung lượng VRAM", gpu.get('vram_str','N/A'))}
+      {_info_row("Loại bộ nhớ / Bus", f"{gpu.get('memory_type','N/A')} ({gpu.get('memory_bus_width','N/A')})")}
+      {_info_row("Shaders / Cores", gpu.get('shaders','N/A'))}
+      {_info_row("Xung nhịp GPU / Mem", f"{gpu.get('gpu_clock','N/A')} / {gpu.get('memory_clock','N/A')}")}
+      {_info_row("Kích thước die / Transistors", f"{gpu.get('die_size','N/A')} ({gpu.get('transistors','N/A')})")}
+      {_info_row("DirectX Support", gpu.get('directx','N/A'))}
+      {_info_row("Hãng OEM (Subvendor)", gpu.get('subvendor','N/A'))}
       {_info_row("Driver Version", gpu.get('driver_version','N/A'))}
       {_info_row("Driver Date", gpu.get('driver_date','N/A'))}
-      {_info_row("Resolution", gpu.get('resolution','N/A'))}
+      {_info_row("Độ phân giải", gpu.get('resolution','N/A'))}
       {_info_row("Nhiệt độ GPU", temp_str)}
-      {_info_row("Tải GPU", f"{load:.0f}%" if load is not None else "N/A")}
     </div>
   </div>
 </div>"""
 
     return f"""
 <div class="section">
-  <div class="section-title">🎮 GPU — Card đồ họa</div>
+  <div class="section-title">🎮 GPU — Card đồ họa (GPU-Z Powered)</div>
   {panels}
 </div>"""
 

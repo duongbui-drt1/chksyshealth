@@ -225,8 +225,8 @@ def get_gpuz_data(is_online: bool = False) -> List[Dict[str, Any]]:
         except Exception:
             pass
 
-        # Chạy ngầm GPU-Z.exe -xml=...
-        cmd = [str(exe_path), f"-xml={xml_file}"]
+        # Chạy ngầm GPU-Z.exe -dump ...
+        cmd = [str(exe_path), "-dump", str(xml_file)]
         creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
         proc = subprocess.Popen(
             cmd,

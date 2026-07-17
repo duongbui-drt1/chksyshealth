@@ -18,6 +18,12 @@
 
 ## Cài đặt & Chạy
 
+### Chạy nhanh bằng 1 câu lệnh PowerShell (One-Liner - Khuyên dùng)
+Mở PowerShell và chạy dòng lệnh sau (sẽ tự xin quyền Admin, tải về từ GitHub và chạy tự động):
+```powershell
+irm https://raw.githubusercontent.com/duongbui-drt1/chksyshealth/main/run.ps1 | iex
+```
+
 ### Chạy từ source (Python)
 ```bash
 # 1. Cài dependencies

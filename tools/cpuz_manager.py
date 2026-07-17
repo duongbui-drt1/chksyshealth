@@ -116,22 +116,38 @@ def _parse_cpuz_report(report_path: Path) -> Dict[str, Any]:
             return data
 
     lines = content.splitlines()
-    for line in lines:
+    current_section = ""
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("-----"):
+            continue
+
+        # Phát hiện header section: dòng tiếp theo là gạch ngang ("-----")
+        if i + 1 < len(lines) and lines[i + 1].strip().startswith("-----"):
+            current_section = stripped.lower()
+            continue
+
+        # Chỉ phân tích các trường thông tin CPU khi đang ở section liên quan đến Processor / CPU
+        if not any(k in current_section for k in ["processor", "cpu"]):
+            continue
+
         if "\t" not in line and "  " not in line:
             continue
         # Split by multiple spaces or tabs
-        parts = re.split(r"\t+|\s{2,}", line.strip())
+        parts = re.split(r"\t+|\s{2,}", stripped)
         if len(parts) < 2:
             continue
         key = parts[0].strip().lower()
         val = parts[1].strip()
 
-        if key == "name" and "name" not in data:
+        if key == "specification" and val:
+            data["specification"] = val
+            data["cpuz_name"] = val  # Specification luôn chính xác và đầy đủ nhất cho tên CPU
+        elif key == "name" and "cpuz_name" not in data and val:
             data["cpuz_name"] = val
         elif key == "codename":
             data["codename"] = val
-        elif key == "specification":
-            data["specification"] = val
         elif "package" in key or "platform id" in key:
             data["package_socket"] = val
         elif key == "technology":
@@ -160,6 +176,10 @@ def _parse_cpuz_report(report_path: Path) -> Dict[str, Any]:
         elif "number of threads" in key:
             m = re.search(r"(\d+)", val)
             if m: data["threads"] = int(m.group(1))
+
+    # Nếu sau khi quét xong mà có specification nhưng cpuz_name bị set bằng name ngắn, gán lại theo specification
+    if data.get("specification"):
+        data["cpuz_name"] = data["specification"]
 
     return data
 

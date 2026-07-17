@@ -9,12 +9,17 @@
 $ErrorActionPreference = "Continue"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-# 1. Self-Elevation to Administrator via UAC
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
     Write-Host "`n [UAC] Yeu cau quyen Administrator de doc thong tin phan cung va ban quyen..." -ForegroundColor Yellow
     try {
-        $psArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+        if ($PSCommandPath -and (Test-Path $PSCommandPath)) {
+            $psArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+        } else {
+            # Running via IEX (memory stream), download directly in elevated process
+            $url = "https://raw.githubusercontent.com/duongbui-drt1/chksyshealth/main/CheckSysHealth.ps1"
+            $psArgs = "-NoProfile -ExecutionPolicy Bypass -Command `"[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iex (Invoke-RestMethod '$url')`""
+        }
         Start-Process powershell -Verb RunAs -ArgumentList $psArgs -ErrorAction Stop
         exit
     } catch {

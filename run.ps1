@@ -5,6 +5,14 @@
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+# Thiết lập UTF-8 Console an toàn để không bao giờ bị lỗi font vuông ([])
+try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    [Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+    chcp 65001 | Out-Null
+} catch {}
+
 # 1. Tự động kiểm tra và xin quyền Administrator (UAC) nếu chưa có
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
@@ -16,9 +24,11 @@ if (-not $isAdmin) {
     exit
 }
 
-Write-Host "`n ========================================================" -ForegroundColor Cyan
-Write-Host "       CheckSysHealth v1.0 - Duli Software" -ForegroundColor Cyan
-Write-Host " ========================================================`n" -ForegroundColor Cyan
+Write-Host "`n  ╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+Write-Host "  ║          CheckSysHealth v1.0 — System Diagnostic Tool        ║" -ForegroundColor Cyan
+Write-Host "  ║           Created by Duli Software & Antigravity             ║" -ForegroundColor Cyan
+Write-Host "  ║       System Hardware & Security Audit [Read-Only]           ║" -ForegroundColor Cyan
+Write-Host "  ╚══════════════════════════════════════════════════════════════╝`n" -ForegroundColor Cyan
 
 # 2. Tạo thư mục làm việc tạm thời
 $workDir = "$env:TEMP\CheckSysHealth_Bootstrapper"

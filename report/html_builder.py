@@ -1084,9 +1084,9 @@ def build_html(data: Dict[str, Any], chartjs_code: str = "") -> str:
   {_build_license_section(data.get('license', {}))}
 
   <!-- Footer -->
-  <div style="text-align:center;padding:32px 0;color:var(--text-muted);font-size:.8rem;border-top:1px solid var(--border);margin-top:40px">
-    <div>CheckSysHealth v1.0 &nbsp;—&nbsp; Công cụ chẩn đoán hệ thống Windows</div>
-    <div>Báo cáo tạo lúc {timestamp} &nbsp;·&nbsp; Read-Only — Không chỉnh sửa hệ thống</div>
+  <div style="text-align:center;padding:32px 0;color:var(--text-muted);font-size:.85rem;border-top:1px solid var(--border);margin-top:40px">
+    <div style="font-weight:600;color:var(--text)">CheckSysHealth v1.0 &nbsp;—&nbsp; Created by Duli Software &amp; Antigravity</div>
+    <div style="margin-top:6px">Báo cáo tạo lúc {timestamp} &nbsp;·&nbsp; Read-Only — Không chỉnh sửa hệ thống</div>
   </div>
 </div>
 

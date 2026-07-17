@@ -1,6 +1,12 @@
-# CheckSysHealth — Công cụ kiểm tra hệ thống Windows
+```
+╔══════════════════════════════════════════════════════════════╗
+║          CheckSysHealth v1.0 — System Diagnostic Tool        ║
+║           Created by Duli Software & Antigravity             ║
+║       Công cụ kiểm tra & kiểm kê hệ thống Windows           ║
+╚══════════════════════════════════════════════════════════════╝
+```
 
-> **Read-Only** · Không chỉnh sửa hệ thống · Cần quyền Administrator
+> **Read-Only** · Không chỉnh sửa hệ thống · Cần quyền Administrator · **Duli Software & Antigravity**
 
 ## Tính năng
 

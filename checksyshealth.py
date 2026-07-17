@@ -28,13 +28,15 @@ import datetime
 import traceback
 from pathlib import Path
 
-# Đảm bảo console Windows không bị crash khi in tiếng Việt (UnicodeEncodeError trên cp1252)
-if hasattr(sys.stdout, "reconfigure"):
-    try:
+# Đảm bảo console Windows không bị crash và hiển thị chuẩn UTF-8 tiếng Việt (không lỗi font vuông [])
+try:
+    if os.name == "nt":
+        os.system("chcp 65001 >nul 2>&1")
+    if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+except Exception:
+    pass
 
 
 # ─── Đảm bảo đường dẫn import đúng khi chạy từ PyInstaller ──────────────────

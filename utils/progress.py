@@ -10,13 +10,16 @@ from colorama import init, Fore, Back, Style
 # Khởi tạo colorama để hỗ trợ ANSI color trên Windows console
 init(autoreset=True)
 
-# Đảm bảo stdout/stderr dùng UTF-8 một cách an toàn
-if hasattr(sys.stdout, "reconfigure"):
-    try:
+# Đảm bảo stdout/stderr và Windows console dùng UTF-8 chuẩn
+try:
+    import os
+    if os.name == "nt":
+        os.system("chcp 65001 >nul 2>&1")
+    if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
+except Exception:
+    pass
 
 
 def _can_encode(text: str) -> bool:
@@ -50,8 +53,9 @@ def print_banner() -> None:
 {Fore.CYAN}{Style.BRIGHT}
   ╔══════════════════════════════════════════════════════════════╗
   ║          CheckSysHealth v1.0 — System Diagnostic Tool        ║
-  ║      Công cụ kiểm tra & kiểm kê hệ thống Windows            ║
-  ║      Chỉ đọc (Read-Only) | Yêu cầu quyền Administrator      ║
+  ║           Created by Duli Software & Antigravity             ║
+  ║       Công cụ kiểm tra & kiểm kê hệ thống Windows           ║
+  ║       Chỉ đọc (Read-Only) | Yêu cầu quyền Administrator      ║
   ╚══════════════════════════════════════════════════════════════╝
 {Style.RESET_ALL}"""
     print(banner)

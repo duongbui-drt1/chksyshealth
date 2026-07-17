@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # CheckSysHealth v1.0 - Standalone PowerShell Edition (No Python / No LHM)
 # Created by: Duli Software & Antigravity
 # Description: Pure native PowerShell system audit & crack detection script.
@@ -42,16 +42,21 @@ $ReportData = @{
     Battery     = @{}
     GPU         = @{}
     Network     = @{}
+    Media       = @{ Audio = @(); Bluetooth = @() }
     License     = @{ Windows = @{}; Office = @{} }
     CrackScan   = @{ Findings = @(); RiskLevel = "None" }
 }
 
 # ------------------------------------------------------------------------------
-# STEP 1: CPU (No Temperature)
+# STEP 1: CPU
 # ------------------------------------------------------------------------------
-Write-Host " [1/9] Dang thu thap thong tin CPU (Khong do nhiet do)..." -ForegroundColor Cyan
+Write-Host " [1/10] Dang thu thap thong tin CPU..." -ForegroundColor Cyan
 try {
     $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+    $L2 = if ($cpu.L2CacheSize) { "$($cpu.L2CacheSize) KB" } else { "N/A" }
+    $L3 = if ($cpu.L3CacheSize) { "$([math]::Round($cpu.L3CacheSize/1024, 1)) MB" } else { "N/A" }
+    $arch = if ($cpu.AddressWidth) { "x$($cpu.AddressWidth)" } else { "x64" }
+    
     $ReportData.CPU = @{
         Name         = if ($cpu.Name) { $cpu.Name.Trim() } else { "Unknown CPU" }
         Manufacturer = $cpu.Manufacturer
@@ -61,15 +66,18 @@ try {
         LoadPct      = [int]$cpu.LoadPercentage
         ProcessorId  = $cpu.ProcessorId
         Socket       = $cpu.SocketDesignation
+        L2Cache      = $L2
+        L3Cache      = $L3
+        Arch         = $arch
     }
 } catch {
-    $ReportData.CPU = @{ Name = "Error reading CPU info"; LoadPct = 0 }
+    $ReportData.CPU = @{ Name = "Error reading CPU info"; LoadPct = 0; Arch = "x64" }
 }
 
 # ------------------------------------------------------------------------------
 # STEP 2: MOTHERBOARD & BIOS
 # ------------------------------------------------------------------------------
-Write-Host " [2/9] Dang thu thap thong tin Mainboard & BIOS..." -ForegroundColor Cyan
+Write-Host " [2/10] Dang thu thap thong tin Mainboard & BIOS..." -ForegroundColor Cyan
 try {
     $mb = Get-CimInstance Win32_BaseBoard | Select-Object -First 1
     $bios = Get-CimInstance Win32_BIOS | Select-Object -First 1
@@ -104,7 +112,7 @@ try {
 # ------------------------------------------------------------------------------
 # STEP 3: RAM
 # ------------------------------------------------------------------------------
-Write-Host " [3/9] Dang thu thap thong tin RAM..." -ForegroundColor Cyan
+Write-Host " [3/10] Dang thu thap thong tin RAM..." -ForegroundColor Cyan
 try {
     $cs = Get-CimInstance Win32_ComputerSystem | Select-Object -First 1
     $totalRamGB = [math]::Round(($cs.TotalPhysicalMemory / 1GB), 1)
@@ -137,7 +145,7 @@ try {
 # ------------------------------------------------------------------------------
 # STEP 4: STORAGE & SMART
 # ------------------------------------------------------------------------------
-Write-Host " [4/9] Dang thu thap thong tin O cung & SMART status..." -ForegroundColor Cyan
+Write-Host " [4/10] Dang thu thap thong tin O cung & SMART status..." -ForegroundColor Cyan
 try {
     $drives = @()
     $diskDrives = Get-CimInstance Win32_DiskDrive
@@ -202,7 +210,7 @@ try {
 # ------------------------------------------------------------------------------
 # STEP 5: BATTERY
 # ------------------------------------------------------------------------------
-Write-Host " [5/9] Dang kiem tra tinh trang Pin (Battery)..." -ForegroundColor Cyan
+Write-Host " [5/10] Dang kiem tra tinh trang Pin (Battery)..." -ForegroundColor Cyan
 try {
     $bat = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($bat) {
@@ -220,7 +228,7 @@ try {
 # ------------------------------------------------------------------------------
 # STEP 6: GPU
 # ------------------------------------------------------------------------------
-Write-Host " [6/9] Dang thu thap thong tin GPU (Card do hoa)..." -ForegroundColor Cyan
+Write-Host " [6/10] Dang thu thap thong tin GPU (Card do hoa)..." -ForegroundColor Cyan
 try {
     $gpus = @()
     $videoControllers = Get-CimInstance Win32_VideoController
@@ -241,17 +249,92 @@ try {
 # ------------------------------------------------------------------------------
 # STEP 7: NETWORK & INTERNET
 # ------------------------------------------------------------------------------
-Write-Host " [7/9] Dang kiem tra Mang & Internet..." -ForegroundColor Cyan
+Write-Host " [7/10] Dang kiem tra Mang & Internet..." -ForegroundColor Cyan
 try {
     $adapters = @()
-    $nics = Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled = True"
-    foreach ($n in $nics) {
-        $ip = if ($n.IPAddress) { ($n.IPAddress | Where-Object { $_ -match "^[0-9\.]+$" }) -join ", " } else { "N/A" }
+    $hw_adapters = Get-CimInstance Win32_NetworkAdapter
+    
+    # Lay cau hinh IP active
+    $configs = Get-CimInstance Win32_NetworkAdapterConfiguration
+    $configMap = @{}
+    foreach ($c in $configs) {
+        if ($c.InterfaceIndex -ne $null) {
+            $configMap[[int]$c.InterfaceIndex] = $c
+        }
+    }
+
+    foreach ($hw in $hw_adapters) {
+        $name = $hw.Name
+        if ($null -eq $name) { continue }
+        $nameLower = $name.ToLower()
+        
+        # Loc bo cac adapter ao mac dinh, wan miniport, v.v.
+        if ($nameLower -match "wan miniport|kernel debugger|ras async|ndis virtual|microsoft kernel") {
+            continue
+        }
+
+        $idx = if ($hw.InterfaceIndex -ne $null) { [int]$hw.InterfaceIndex } else { -1 }
+        $mac = if ($hw.MACAddress) { $hw.MACAddress.Trim() } else { "N/A" }
+        $driverVer = if ($hw.DriverVersion) { $hw.DriverVersion.Trim() } else { "N/A" }
+        $mfr = if ($hw.Manufacturer) { $hw.Manufacturer.Trim() } else { "N/A" }
+        $isPhysical = if ($hw.PhysicalAdapter -ne $null) { [bool]$hw.PhysicalAdapter } else { $false }
+        
+        $speedBps = if ($hw.Speed) { $hw.Speed } else { 0 }
+        $speedMbps = if ($speedBps -gt 0) { [math]::Round($speedBps / 1MB, 0) } else { 0 }
+
+        $statusMap = @{
+            0 = "Disconnected"; 1 = "Connecting"; 2 = "Connected";
+            3 = "Disconnecting"; 4 = "Hardware not present";
+            5 = "Hardware disabled"; 6 = "Hardware malfunction";
+            7 = "Media disconnected"; 8 = "Authenticating";
+            9 = "Authentication succeeded"; 10 = "Authentication failed";
+            11 = "Invalid address"; 12 = "Credentials required";
+        }
+        $status = if ($hw.NetConnectionStatus -ne $null -and $statusMap.ContainsKey([int]$hw.NetConnectionStatus)) {
+            $statusMap[[int]$hw.NetConnectionStatus]
+        } else {
+            "Unknown"
+        }
+
+        $ip4List = @()
+        $ip6List = @()
+        $gateways = @()
+        $dnsList = @()
+        $dhcp = "No"
+
+        if ($idx -ne -1 -and $configMap.ContainsKey($idx)) {
+            $cfg = $configMap[$idx]
+            if ($cfg.IPAddress) {
+                foreach ($ip in $cfg.IPAddress) {
+                    if ($ip -match "^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$") { $ip4List += $ip }
+                    elseif ($ip -match ":") { $ip6List += $ip }
+                }
+            }
+            if ($cfg.DefaultIPGateway) { $gateways = @($cfg.DefaultIPGateway) }
+            if ($cfg.DNSServerSearchOrder) { $dnsList = @($cfg.DNSServerSearchOrder) }
+            if ($cfg.DHCPEnabled) { $dhcp = "Yes" }
+        }
+
+        $type = "Ethernet"
+        if (-not $isPhysical) { $type = "Virtual" }
+        elif ($nameLower -match "wi-fi|wireless|wlan|wifi|802.11") { $type = "Wi-Fi" }
+        elif ($nameLower -match "virtual|vmware|virtualbox|hyper-v|loopback") { $type = "Virtual" }
+        elif ($nameLower -match "bluetooth") { $type = "Bluetooth" }
+
         $adapters += @{
-            Description = $n.Description
-            MAC         = $n.MACAddress
-            IPAddress   = $ip
-            DHCP        = if ($n.DHCPEnabled) { "Yes" } else { "Static/No" }
+            Name         = $name
+            Type         = $type
+            Manufacturer = $mfr
+            MAC          = $mac
+            DriverVer    = $driverVer
+            SpeedMbps    = $speedMbps
+            Status       = $status
+            IPAddress    = if ($ip4List.Count -gt 0) { $ip4List[0] } else { "N/A" }
+            IP6          = if ($ip6List.Count -gt 0) { $ip6List[0] } else { "N/A" }
+            Gateways     = $gateways
+            DNS          = $dnsList
+            DHCP         = $dhcp
+            IsPhysical   = $isPhysical
         }
     }
 
@@ -266,12 +349,71 @@ try {
         Adapters   = $adapters
         InternetOk = $internetOk
     }
-} catch {}
+} catch {
+    $ReportData.Network = @{ Adapters = @(); InternetOk = $false }
+}
 
 # ------------------------------------------------------------------------------
-# STEP 8: LICENSE (WINDOWS & OFFICE)
+# STEP 8: AUDIO & BLUETOOTH DEVICES
 # ------------------------------------------------------------------------------
-Write-Host " [8/9] Dang kiem tra Ban quyen Windows & Microsoft Office..." -ForegroundColor Cyan
+Write-Host " [8/10] Dang thu thap thong tin Driver Am thanh & Bluetooth..." -ForegroundColor Cyan
+try {
+    $audioList = @()
+    $btList = @()
+    
+    $drivers = Get-CimInstance Win32_PnPSignedDriver
+    foreach ($d in $drivers) {
+        if ($null -eq $d.ClassGuid) { continue }
+        $guid = $d.ClassGuid.ToLower()
+        $name = $d.DeviceName
+        if ($null -eq $name -or $name -eq "") { continue }
+        $mfr = if ($d.Manufacturer) { $d.Manufacturer.Trim() } else { "Unknown" }
+        $ver = if ($d.DriverVersion) { $d.DriverVersion.Trim() } else { "N/A" }
+        
+        $dateStr = "N/A"
+        if ($d.DriverDate) {
+            try {
+                $dateStr = ([System.Management.ManagementDateTimeConverter]::ToDateTime($d.DriverDate)).ToString("dd/MM/yyyy")
+            } catch {
+                if ($d.DriverDate.Length -ge 8) {
+                    $dateStr = "$($d.DriverDate.Substring(6,2))/$($d.DriverDate.Substring(4,2))/$($d.DriverDate.Substring(0,4))"
+                }
+            }
+        }
+
+        $devInfo = @{
+            Name         = $name
+            Manufacturer = $mfr
+            Version      = $ver
+            Date         = $dateStr
+        }
+
+        # Sound Class GUID
+        if ($guid -eq "{4d36e96c-e325-11ce-bfc1-08002be10318}") {
+            $audioList += $devInfo
+        }
+        # Bluetooth Class GUID
+        elseif ($guid -eq "{e0cbf06c-cd8b-4647-bb8a-263b43f0f974}") {
+            $btList += $devInfo
+        }
+    }
+
+    # Sort: third party manufacturers go first, Microsoft/generic goes last
+    $audioList = $audioList | Sort-Object @{ Expression = { if ($_.Manufacturer -match "Microsoft") { 1 } else { 0 } } }, Name
+    $btList = $btList | Sort-Object @{ Expression = { if ($_.Manufacturer -match "Microsoft") { 1 } else { 0 } } }, Name
+
+    $ReportData.Media = @{
+        Audio     = $audioList
+        Bluetooth = $btList
+    }
+} catch {
+    $ReportData.Media = @{ Audio = @(); Bluetooth = @() }
+}
+
+# ------------------------------------------------------------------------------
+# STEP 9: LICENSE (WINDOWS & OFFICE)
+# ------------------------------------------------------------------------------
+Write-Host " [9/10] Dang kiem tra Ban quyen Windows & Microsoft Office..." -ForegroundColor Cyan
 
 # --- Windows OS Info & License ---
 try {
@@ -358,9 +500,9 @@ try {
 } catch {}
 
 # ------------------------------------------------------------------------------
-# STEP 9: CRACK & SECURITY AUDIT (14 CHECKS)
+# STEP 10: CRACK & SECURITY AUDIT (14 CHECKS)
 # ------------------------------------------------------------------------------
-Write-Host " [9/9] Dang quet rui ro bao mat & phat hien cong cu Crack (14 hang muc)..." -ForegroundColor Cyan
+Write-Host " [10/10] Dang quet rui ro bao mat & phat hien cong cu Crack (14 hang muc)..." -ForegroundColor Cyan
 $findings = @()
 
 # [Check 1] Hosts file check for KMS redirection
@@ -376,7 +518,7 @@ try {
     }
 } catch {}
 
-# [Check 2] Suspicious Scheduled Tasks (excluding standard Microsoft tasks)
+# [Check 2] Suspicious Scheduled Tasks
 try {
     $tasks = Get-ScheduledTask -ErrorAction SilentlyContinue
     $suspKeywords = @("kms", "activate", "activator", "aact", "pico", "kms_vl_all", "ohook", "ospphook")
@@ -448,15 +590,121 @@ try {
 try {
     $off = $ReportData.License.Office
     if ($off.Installed) {
-        # Check KMS server pointing to local IP
         if ($off.KmsServer -match "^(127\.|localhost|0\.0\.0\.0|192\.168\.|10\.|172\.)") {
             $findings += @{ Severity="High"; Title="Office cau hinh kich hoat qua KMS Server noi bo (KMS Emulator)"; Evidence="KMS Server: $($off.KmsServer)" }
         }
-        # Check Retail to Volume conversion
         $isRetailInstall = $off.ProductName -match "Retail"
         $isVolumeActive  = $off.LicenseType -match "Volume|KMS" -or $off.Channel -match "Volume|KMS"
         if ($isRetailInstall -and $isVolumeActive) {
             $findings += @{ Severity="High"; Title="Phat hien dau hieu chuyen doi Office Retail sang Volume trai phep (C2R-R2V)"; Evidence="Installer: $($off.ProductName) | Active License: $($off.LicenseType)" }
+        }
+    }
+} catch {}
+
+# [Check 6] Ohook Activator DLL check
+try {
+    $sppDll = "$env:windir\System32\sppcs.dll"
+    if (Test-Path $sppDll) {
+        $findings += @{ Severity="Critical"; Title="Phat hien Ohook KMS Activator qua sppcs.dll"; Evidence=$sppDll }
+    }
+} catch {}
+
+# [Check 7] Local KMS Emulator Service (KMSpico Service)
+try {
+    $kmsSvc = Get-Service -Name "KMSpico Service", "ServiceKMSpico", "KMSConnectionMonitor" -ErrorAction SilentlyContinue
+    if ($kmsSvc) {
+        $findings += @{ Severity="Critical"; Title="Phat hien Service gia lap KMS dang hoat dong"; Evidence="$($kmsSvc.Name) ($($kmsSvc.Status))" }
+    }
+} catch {}
+
+# [Check 8] Microsoft Product Redirection IP in Routing Table
+try {
+    $routes = Get-NetRoute -ErrorAction SilentlyContinue
+    foreach ($r in $routes) {
+        if ($r.DestinationPrefix -match "^(20\.223\.|40\.83\.|23\.96\.|20\.118\.)") {
+            if ($r.NextHop -match "^(127\.|192\.168\.|10\.)") {
+                $findings += @{ Severity="High"; Title="Phat hien dinh tuyen huong mien kich hoat Microsoft sang IP noi bo"; Evidence="Prefix: $($r.DestinationPrefix) -> Hop: $($r.NextHop)" }
+            }
+        }
+    }
+} catch {}
+
+# [Check 9] KMS Emulator Registry Key
+try {
+    $kmsRegs = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\SppExtComObj.exe",
+        "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\osppsvc.exe"
+    )
+    foreach ($reg in $kmsRegs) {
+        if (Test-Path $reg) {
+            $debugger = Get-ItemProperty -Path $reg -Name "Debugger" -ErrorAction SilentlyContinue
+            if ($debugger) {
+                $findings += @{ Severity="Critical"; Title="Phat hien Image File Execution Options Hijack (KMS Emulator)"; Evidence="$reg -> Debugger: $($debugger.Debugger)" }
+            }
+        }
+    }
+} catch {}
+
+# [Check 10] OSPP DLL Hijacking (sppc.dll / osppc.dll)
+try {
+    $offPaths = @(
+        "$env:ProgramFiles\Microsoft Office\root\Office16",
+        "${env:ProgramFiles(x86)}\Microsoft Office\root\Office16",
+        "$env:ProgramFiles\Microsoft Office\Office16"
+    )
+    foreach ($p in $offPaths) {
+        if (Test-Path $p) {
+            foreach ($dll in @("sppc.dll", "osppc.dll", "slc.dll")) {
+                $dllPath = "$p\$dll"
+                if (Test-Path $dllPath) {
+                    $findings += @{ Severity="Critical"; Title="Phat hien DLL be khoa Office gia mao tai thu muc cài dat (Ohook/KMS)"; Evidence=$dllPath }
+                }
+            }
+        }
+    }
+} catch {}
+
+# [Check 11] Unsigned Activator Drivers (KMS driver / virtual NIC)
+try {
+    $drivers = Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceClass -match "System|Net" }
+    foreach ($d in $drivers) {
+        if ($d.DeviceName -match "TAP-Windows Adapter V9|TAP-Win32|Wintun|KMSEmulator") {
+            if ($d.Signer -notmatch "Microsoft|OpenVPN") {
+                $findings += @{ Severity="Medium"; Title="Driver mang hoac he thong khong ky so nghi van"; Evidence="$($d.DeviceName) ($($d.Signer))" }
+            }
+        }
+    }
+} catch {}
+
+# [Check 12] Activation Bypass tokens (Tokens.dat modify)
+try {
+    $tokenPath = "$env:ProgramData\Microsoft\Windows\ClipSVC\tokens.dat"
+    if (Test-Path $tokenPath) {
+        $writeTime = (Get-Item $tokenPath).LastWriteTime
+        if ((Get-Date).AddDays(-30) -lt $writeTime) {
+            $findings += @{ Severity="Low"; Title="ClipSVC tokens.dat bi sua doi trong vong 30 ngay qua"; Evidence="Lan cuoi thay doi: $writeTime" }
+        }
+    }
+} catch {}
+
+# [Check 13] KMS Server Port scan response (Local port check)
+try {
+    $socket = New-Object System.Net.Sockets.TcpClient
+    $connect = $socket.BeginConnect("127.0.0.1", 1688, $null, $null)
+    $wait = $connect.AsyncWaitHandle.WaitOne(300, $false)
+    if ($wait) {
+        $socket.EndConnect($connect)
+        $findings += @{ Severity="Critical"; Title="KMS Server dang chay an va phan hoi tren Localhost (Port 1688 open)"; Evidence="TCP Connection to 127.0.0.1:1688 succeeded" }
+    }
+    $socket.Close()
+} catch {}
+
+# [Check 14] Generic Volume License Key (GVLK) check in Windows License
+try {
+    $gvlks = @("W269N-WFGWX-YVC9B-4J6C9-T83GX", "TX9XD-98N7V-6WMQ6-BX7FG-H8Q99", "NPPR9-FWDCX-D2C8J-H872K-2YT43")
+    foreach ($key in $gvlks) {
+        if ($ReportData.License.Windows.PartialKey -and $key.EndsWith($ReportData.License.Windows.PartialKey)) {
+            $findings += @{ Severity="High"; Title="Windows dang su dung khoa Volume Generic (GVLK) thuong thay cua KMS Activator"; Evidence="Partial Key khop voi GVLK cua ban $($ReportData.License.Windows.Name)" }
         }
     }
 } catch {}
@@ -527,6 +775,10 @@ $htmlContent = @"
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
         th { color: var(--text-muted); font-weight: 600; background: rgba(0,0,0,0.1); }
+        .media-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) {
+            .media-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -580,13 +832,16 @@ $htmlContent = @"
 
         <!-- CPU Panel -->
         <div class="panel">
-            <div class="panel-header"><span>CPU (Processor) — No Temp Measurement</span></div>
+            <div class="panel-header"><span>CPU (Processor)</span></div>
             <div class="panel-body info-grid">
                 <div class="info-row"><span class="info-label">CPU Name</span><span class="info-val">$($ReportData.CPU.Name)</span></div>
                 <div class="info-row"><span class="info-label">Cores / Threads</span><span class="info-val">$($ReportData.CPU.Cores) Cores / $($ReportData.CPU.Threads) Threads</span></div>
                 <div class="info-row"><span class="info-label">Max Clock Speed</span><span class="info-val">$($ReportData.CPU.MaxClock)</span></div>
                 <div class="info-row"><span class="info-label">Current Load Pct</span><span class="info-val">$($ReportData.CPU.LoadPct)%</span></div>
                 <div class="info-row"><span class="info-label">Socket</span><span class="info-val">$($ReportData.CPU.Socket)</span></div>
+                <div class="info-row"><span class="info-label">Architecture</span><span class="info-val">$($ReportData.CPU.Arch)</span></div>
+                <div class="info-row"><span class="info-label">Cache L2</span><span class="info-val">$($ReportData.CPU.L2Cache)</span></div>
+                <div class="info-row"><span class="info-label">Cache L3</span><span class="info-val">$($ReportData.CPU.L3Cache)</span></div>
                 <div class="info-row"><span class="info-label">Processor ID</span><span class="info-val">$($ReportData.CPU.ProcessorId)</span></div>
             </div>
         </div>
@@ -656,6 +911,69 @@ $htmlContent = @"
                         }) -join "")
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Network Panel -->
+        <div class="panel">
+            <div class="panel-header"><span>Network Connections &amp; Active Adapters</span></div>
+            <div class="panel-body">
+                <p style="margin-bottom:12px;font-weight:600;color:$(if($ReportData.Network.InternetOk){'var(--good)'}else{'var(--warn)'})">
+                    Internet Connectivity: $(if($ReportData.Network.InternetOk){'Connected (OK)'}else{'Disconnected/Offline'})
+                </p>
+                
+                <h4 style="margin:10px 0;color:var(--text-muted)">Active Adapters:</h4>
+                <table>
+                    <thead><tr><th>Adapter Name</th><th>MAC Address</th><th>IPv4 Address</th><th>DHCP</th></tr></thead>
+                    <tbody>
+                        $(($ReportData.Network.Adapters | Where-Object { $_.Status -eq "Connected" -or $_.IPAddress -ne "N/A" } | ForEach-Object {
+                            "<tr><td><b>$($_.Name)</b></td><td>$($_.MAC)</td><td>$($_.IPAddress)</td><td>$($_.DHCP)</td></tr>"
+                        }) -join "")
+                    </tbody>
+                </table>
+
+                <h4 style="margin:20px 0 10px;color:var(--text-muted)">All Adapters &amp; Network Drivers Inventory:</h4>
+                <table>
+                    <thead><tr><th>Adapter Name</th><th>Classification</th><th>Manufacturer</th><th>Status</th><th>Driver Version</th></tr></thead>
+                    <tbody>
+                        $(($ReportData.Network.Adapters | ForEach-Object {
+                            $phy = if($_.IsPhysical){"Physical"}else{"Virtual"}
+                            "<tr><td>$($_.Name)</td><td><span class='badge' style='background:rgba(100,116,139,0.15);color:var(--text-muted)'>$phy</span></td><td>$($_.Manufacturer)</td><td>$(Get-Badge $_.Status)</td><td style='font-family:monospace'>$($_.DriverVer)</td></tr>"
+                        }) -join "")
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Audio & Bluetooth Panel -->
+        <div class="panel">
+            <div class="panel-header"><span>Media Drivers (Audio Controllers &amp; Bluetooth)</span></div>
+            <div class="panel-body media-grid">
+                <!-- Left: Audio -->
+                <div>
+                    <h4 style="margin-bottom:10px;color:var(--accent)">🔊 Audio Controllers</h4>
+                    <table>
+                        <thead><tr><th>Device Name</th><th>Manufacturer</th><th>Driver Version</th><th>Driver Date</th></tr></thead>
+                        <tbody>
+                            $(($ReportData.Media.Audio | ForEach-Object {
+                                "<tr><td><b>$($_.Name)</b></td><td>$($_.Manufacturer)</td><td style='font-family:monospace'>$($_.Version)</td><td>$($_.Date)</td></tr>"
+                            }) -join "")
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Right: Bluetooth -->
+                <div>
+                    <h4 style="margin-bottom:10px;color:var(--accent)">💙 Bluetooth &amp; BLE Devices</h4>
+                    <table>
+                        <thead><tr><th>Device Name</th><th>Manufacturer</th><th>Driver Version</th><th>Driver Date</th></tr></thead>
+                        <tbody>
+                            $(($ReportData.Media.Bluetooth | ForEach-Object {
+                                "<tr><td><b>$($_.Name)</b></td><td>$($_.Manufacturer)</td><td style='font-family:monospace'>$($_.Version)</td><td>$($_.Date)</td></tr>"
+                            }) -join "")
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 

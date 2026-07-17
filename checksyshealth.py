@@ -72,6 +72,7 @@ from collectors import (
     gpu_collector,
     license_collector,
     network_collector,
+    media_collector,
 )
 
 # Tool managers
@@ -189,7 +190,7 @@ def main():
     print_section("Thu thập thông tin hệ thống")
     all_data = {}
 
-    total_steps = 8
+    total_steps = 9
     step = 0
 
     step += 1; print_step("CPU", step, total_steps)
@@ -258,6 +259,16 @@ def main():
     except Exception as e:
         print_warn(f"Network collector lỗi: {e}")
         all_data["network"] = {"hostname": socket.gethostname(), "adapters": [], "internet": {}, "firewall": {}}
+
+    step += 1; print_step("Thiết bị Âm thanh & Bluetooth", step, total_steps)
+    try:
+        all_data["media"] = media_collector.collect()
+        audio_cnt = len(all_data["media"].get("audio", []))
+        bt_cnt = len(all_data["media"].get("bluetooth", []))
+        print_ok(f"Media: {audio_cnt} thiết bị âm thanh | {bt_cnt} thiết bị Bluetooth phát hiện")
+    except Exception as e:
+        print_warn(f"Media collector lỗi: {e}")
+        all_data["media"] = {"audio": [], "bluetooth": []}
 
     step += 1; print_step("Bản quyền & Security Scan", step, total_steps)
     try:

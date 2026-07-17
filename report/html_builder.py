@@ -830,7 +830,7 @@ def _build_network_section(net: Dict) -> str:
       </div>"""
     fw_html += "</div></div></div>"
 
-    # Adapter list
+    # Active Adapter list (connected or having IP)
     adapter_html = ""
     for adp in adapters:
         if adp.get("status") == "Connected" or adp.get("ip4") != "N/A":
@@ -857,12 +857,128 @@ def _build_network_section(net: Dict) -> str:
   </div>
 </div>"""
 
+    # Full Adapter Inventory Table (including virtual and offline adapters)
+    inv_rows = ""
+    for adp in adapters:
+        phy_lbl = "Vật lý" if adp.get("is_physical") else "Ảo"
+        status_lbl = adp.get("status", "N/A")
+        status_clr = "status-good" if status_lbl == "Connected" else "status-warn" if status_lbl == "Media disconnected" else "status-unknown"
+        inv_rows += f"""
+<tr>
+  <td>{adp.get('name','N/A')}</td>
+  <td><span class="badge" style="background:var(--bg-muted);color:var(--text)">{phy_lbl}</span></td>
+  <td>{adp.get('manufacturer','N/A')}</td>
+  <td><span class="badge {status_clr}">{status_lbl}</span></td>
+  <td style="font-family:monospace">{adp.get('driver_ver','N/A')}</td>
+</tr>"""
+
+    inventory_html = f"""
+<div class="panel" style="margin-top:16px">
+  <div class="panel-header"><span>🌐</span><span>Danh sách toàn bộ Adapter & Driver mạng trên hệ thống</span></div>
+  <div class="panel-body">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Tên Adapter</th>
+            <th>Phân loại</th>
+            <th>Nhà sản xuất</th>
+            <th>Trạng thái</th>
+            <th>Phiên bản Driver</th>
+          </tr>
+        </thead>
+        <tbody>
+          {inv_rows if inv_rows else '<tr><td colspan="5" style="text-align:center">Không phát hiện adapter mạng nào</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>"""
+
     return f"""
 <div class="section">
   <div class="section-title">🌐 Mạng (Network)</div>
   {inet_html}
   {fw_html}
   {adapter_html if adapter_html else '<div class="alert alert-warning"><span>⚠️</span><span>Không tìm thấy adapter đang hoạt động</span></div>'}
+  {inventory_html}
+</div>"""
+
+
+def _build_media_section(media: Dict) -> str:
+    audio = media.get("audio", [])
+    bluetooth = media.get("bluetooth", [])
+
+    # Sound rows
+    audio_rows = ""
+    for a in audio:
+        audio_rows += f"""
+<tr>
+  <td><strong>{a.get('name','N/A')}</strong></td>
+  <td>{a.get('manufacturer','N/A')}</td>
+  <td style="font-family:monospace">{a.get('version','N/A')}</td>
+  <td>{a.get('date','N/A')}</td>
+</tr>"""
+
+    # Bluetooth rows
+    bt_rows = ""
+    for b in bluetooth:
+        bt_rows += f"""
+<tr>
+  <td><strong>{b.get('name','N/A')}</strong></td>
+  <td>{b.get('manufacturer','N/A')}</td>
+  <td style="font-family:monospace">{b.get('version','N/A')}</td>
+  <td>{b.get('date','N/A')}</td>
+</tr>"""
+
+    return f"""
+<div class="section">
+  <div class="section-title">🎵 Thiết bị Âm thanh & Bluetooth (Media & Drivers)</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <!-- Cột trái: Âm thanh -->
+    <div class="panel">
+      <div class="panel-header"><span>🔊</span><span>Thiết bị Âm thanh (Audio Controllers)</span></div>
+      <div class="panel-body">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tên thiết bị</th>
+                <th>Nhà sản xuất</th>
+                <th>Driver Version</th>
+                <th>Ngày Driver</th>
+              </tr>
+            </thead>
+            <tbody>
+              {audio_rows if audio_rows else '<tr><td colspan="4" style="text-align:center">Không phát hiện thiết bị âm thanh nào</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cột phải: Bluetooth -->
+    <div class="panel">
+      <div class="panel-header"><span>💙</span><span>Thiết bị Bluetooth & BLE</span></div>
+      <div class="panel-body">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tên thiết bị</th>
+                <th>Nhà sản xuất</th>
+                <th>Driver Version</th>
+                <th>Ngày Driver</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bt_rows if bt_rows else '<tr><td colspan="4" style="text-align:center">Không phát hiện thiết bị Bluetooth nào</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>"""
 
 
@@ -1096,6 +1212,9 @@ def build_html(data: Dict[str, Any], chartjs_code: str = "") -> str:
 
   <!-- ═══ NETWORK ═══ -->
   {_build_network_section(data.get('network', {}))}
+
+  <!-- ═══ MEDIA (AUDIO & BLUETOOTH) ═══ -->
+  {_build_media_section(data.get('media', {}))}
 
   <!-- ═══ LICENSE & SECURITY ═══ -->
   {_build_license_section(data.get('license', {}))}

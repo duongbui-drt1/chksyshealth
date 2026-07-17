@@ -103,19 +103,26 @@ def _get_adapters() -> List[Dict]:
     except Exception:
         pass
 
-    # Lấy danh sách adapter vật lý từ WMI
+    # Lấy danh sách toàn bộ adapter từ WMI
     hw_adapters = wmi_query(
         r"root\cimv2",
-        "SELECT * FROM Win32_NetworkAdapter WHERE PhysicalAdapter=True"
+        "SELECT * FROM Win32_NetworkAdapter"
     )
 
     for hw in hw_adapters:
-        idx        = int(safe_get(hw, "InterfaceIndex", 0))
         name       = safe_get(hw, "Name",              "N/A").strip()
+        name_lower = name.lower()
+
+        # Bỏ qua các driver ảo dạng tunnel mặc định của hệ thống Windows
+        if any(k in name_lower for k in ["wan miniport", "kernel debugger", "ras async adapter", "ndis virtual", "microsoft kernel"]):
+            continue
+
+        idx        = int(safe_get(hw, "InterfaceIndex", 0))
         net_type   = safe_get(hw, "NetworkConnectionID", "").strip()
         mac        = safe_get(hw, "MACAddress",         "N/A").strip()
         driver_ver = safe_get(hw, "DriverVersion",      "N/A").strip()
         manufacturer = safe_get(hw, "Manufacturer",    "N/A").strip()
+        is_physical = bool(safe_get(hw, "PhysicalAdapter", False))
 
         # Tốc độ kết nối (bit/s → Mbps)
         speed_bps  = int(safe_get(hw, "Speed", 0))
@@ -183,8 +190,9 @@ def _get_adapters() -> List[Dict]:
 
         # Loại adapter (WiFi, Ethernet, Virtual...)
         adapter_type = "Ethernet"
-        name_lower = name.lower()
-        if any(k in name_lower for k in ["wi-fi", "wireless", "wlan", "wifi", "802.11"]):
+        if not is_physical:
+            adapter_type = "Virtual"
+        elif any(k in name_lower for k in ["wi-fi", "wireless", "wlan", "wifi", "802.11"]):
             adapter_type = "Wi-Fi"
         elif any(k in name_lower for k in ["virtual", "vmware", "virtualbox", "hyper-v", "loopback"]):
             adapter_type = "Virtual"
@@ -206,6 +214,7 @@ def _get_adapters() -> List[Dict]:
             "gateways":     gateways,
             "dns":          dns_list,
             "dhcp":         dhcp,
+            "is_physical":  is_physical,
         }
         adapters.append(adapter_info)
 
